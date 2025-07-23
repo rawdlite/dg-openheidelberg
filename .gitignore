@@ -3,4 +3,4 @@ _pycache__/
 .idea
 .env
 .aider*
-src/dg_openheidelberg/defs/data/*
+src/dg_openheidelberg/defs/data/*.csv
