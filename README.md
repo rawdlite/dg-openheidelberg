@@ -14,31 +14,33 @@ creating a scalable , highly automated process to onboard new members
 - Nextcloud is used to store and share Csv Assets
 - Dagster is used to orchestrate data pipelines
 ---
-```plantuml
-participant Grafitti order 10
-participant "Matrix Bot" as Matrix order 20
-actor "Nextcloud User" as User order 30
-database Nextcloud order 40
-queue Dagster order 50
-participant Openproject order 60
-actor "Onboarding Admin" as Admin order 70
-Grafitti -> Nextcloud : write onboarding.csv
-Matrix -> Nextcloud: write onboarding.csv
-User -[#orange]\ Nextcloud: edit onboarding.csv
-Dagster -> Nextcloud: get onboarding.csv
-Dagster -> Dagster: get openproject accounts
-Dagster -> Dagster: get nextcloud accounts
-Dagster -> Nextcloud: write accounts.csv
-Dagster -> Openproject: write onboarding tasks
-Dagster -> Nextcloud: update onboarding.csv
-Admin -[#red]> Openproject: authorize account creation
-Dagster -> Openproject: get authorized tasks
-Dagster -> Nextcloud: create authorized accounts 
-Dagster -> Openproject: create authorized accounts
-Dagster -> Nextcloud: update accounts.csv
-Dagster -> Openproject: update tasks
-Dagster -> Grafitti: update data
-Dagster -> Dagster: send Welcome Mail
+```mermaid
+sequenceDiagram
+    participant Grafitti
+    participant Matrix Bot
+    actor Nextcloud User
+    participant Nextcloud
+    participant Dagster
+    participant Openproject
+    actor "Onboarding Admin" as Admin
+
+    Grafitti->>Nextcloud: write onboarding.csv
+    Matrix Bot->>Nextcloud: write onboarding.csv
+    Nextcloud User-->>Nextcloud: edit onboarding
+    Dagster -> Nextcloud: get onboarding.csv
+    Dagster -> Dagster: get openproject accounts
+    Dagster -> Dagster: get nextcloud accounts
+    Dagster -> Nextcloud: write accounts.csv
+    Dagster -> Openproject: write onboarding tasks
+    Dagster -> Nextcloud: update onboarding.csv
+    Admin -> Openproject: authorize account creation
+    Dagster -> Openproject: get authorized tasks
+    Dagster -> Nextcloud: create authorized accounts 
+    Dagster -> Openproject: create authorized accounts
+    Dagster -> Nextcloud: update accounts.csv
+    Dagster -> Openproject: update tasks
+    Dagster -> Grafitti: update data
+    Dagster -> Dagster: send Welcome Mail
 ```
 
 ---
