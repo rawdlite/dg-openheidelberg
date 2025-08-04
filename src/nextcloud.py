@@ -58,3 +58,13 @@ class NextcloudClient:
         """
         with open(local_path, 'wb') as f:
             self.nc.files.download2stream(remote_file, f)
+
+    def create_user(self, email: str, username: str, firstname: str, lastname: str) -> Dict[str, Any]:
+        """Create a new user in Nextcloud."""
+        try:
+            self.nc.users.create(user_id=username, email=email, display_name=f"{firstname} {lastname}")
+            user = self.nc.users.get_user(username)
+            return user
+        except Exception as e:
+            print(f"Error creating user: {e}")
+            return None

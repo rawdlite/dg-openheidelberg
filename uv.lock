@@ -290,6 +290,12 @@ wheels = [
 ]
 
 [[package]]
+name = "couch"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/11/5a/53f2cba8b50ffdc3c979530ba4e661b5d6b0a7601ffe80ee817d2d9babb4/couch-1.0.1.tar.gz", hash = "sha256:b63bc2e4f5c47bf9deb77e5db9bb5512feb535c3f8b01127af2a6f933e419906", size = 2885, upload-time = "2019-08-12T14:59:54.01Z" }
+
+[[package]]
 name = "couchdb"
 version = "1.2"
 source = { registry = "https://pypi.org/simple" }
@@ -510,6 +516,7 @@ name = "dg-openheidelberg"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "couch" },
     { name = "couchdb" },
     { name = "dagster" },
     { name = "nc-py-api", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, extra = ["calendar"], marker = "python_full_version < '3.10'" },
@@ -526,6 +533,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "couch", specifier = ">=1.0.1" },
     { name = "couchdb", specifier = ">=1.2" },
     { name = "dagster", specifier = ">=1.11.2" },
     { name = "nc-py-api", extras = ["calendar"], specifier = ">=0.6.0" },

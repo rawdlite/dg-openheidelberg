@@ -31,6 +31,11 @@ class TestDagsterAssets(unittest.TestCase):
         res = create_openproject_member_tasks()
         self.assertIsNotNone(res)
 
+    def test_create_user_accounts(self):
+        # Act
+        from src.dg_openheidelberg.defs.assets import create_user_accounts
+        res = create_user_accounts()
+        self.assertIsNotNone(res)
 
 if __name__ == "__main__":
     unittest.main()

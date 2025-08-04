@@ -28,6 +28,13 @@ class TestWorkPackageParser(TestCase):
         result = wp.get_project_18_form_info()
         # If it returns None or a dict, that's acceptable
         assert result is None or isinstance(result, dict)
+        
+    def test_get_scheduled_workpackages(self):
+        wp = WorkPackageParser()
+        scheduled_workpackages = wp.get_workpackages(project_id=18, status_id=6)
+        print(scheduled_workpackages)
+        self.assertIsNotNone(scheduled_workpackages)
+        self.assertIsInstance(scheduled_workpackages, list)
        
             
     def test_create_member(self):

@@ -5,23 +5,6 @@ from config import Config
 
 
 class WorkPackageParser:
-    def get_scheduled_workpackages(self) -> Optional[List[Dict[str, Any]]]:
-        """
-        Get all workpackages with status 6 (scheduled) from project 18 (onboarding).
-        Returns a list of workpackage dicts or None if request fails.
-        """
-        url = f"{self.url}/api/v3/projects/18/work_packages"
-        # OpenProject API filter for status 6 (scheduled)
-        params = {
-            "filters": '[{"status":{"operator":"=","values":["6"]}}]'
-        }
-        response = requests.get(url, params=params, auth=('apikey', self.apikey))
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('_embedded', {}).get('elements', [])
-        else:
-            print(f"Failed to fetch scheduled workpackages. Status code: {response.status_code}")
-            return None
     """
     This class is used to parse the workpackage data from the API.
     """
@@ -65,6 +48,48 @@ class WorkPackageParser:
                 or (user['customField5'] == firstname and user['customField6'] == lastname):
                 return user
         return None
+
+    def get_workpackages(self, project_id: int = None, status_id: int = None) -> Optional[List[Dict[str, Any]]]:
+        """
+        Get all workpackages from the API for a specific project.
+        :param project_id: The ID of the project to fetch workpackages from
+        :return: List of workpackage dicts or None if request fails
+        """
+        if project_id:
+            url = f"{self.url}/api/v3/projects/{project_id}/work_packages"
+        else:
+            url = f"{self.url}/api/v3/work_packages"
+        if status_id:
+            params = {
+                "filters": f'[{{"status":{{"operator":"=","values":["{status_id}"]}}}}]'
+            }
+            response = requests.get(url, params=params, auth=('apikey', self.apikey))
+        else:
+            response = requests.get(url, auth=('apikey', self.apikey))
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('_embedded', {}).get('elements', [])
+        else:
+            print(f"Failed to fetch workpackages. Status code: {response.status_code}")
+            return None 
+        
+   
+        """
+        Get all workpackages with status 6 (scheduled) from project 18 (onboarding).
+        Returns a list of workpackage dicts or None if request fails.
+        """
+        url = f"{self.url}/api/v3/projects/18/work_packages"
+        # OpenProject API filter for status 6 (scheduled)
+        params = {
+            "filters": '[{"status":{"operator":"=","values":["6"]}}]'
+        }
+        response = requests.get(url, params=params, auth=('apikey', self.apikey))
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('_embedded', {}).get('elements', [])
+        else:
+            print(f"Failed to fetch scheduled workpackages. Status code: {response.status_code}")
+            return None
 
     def get_project_18_form_info(self) -> Optional[Dict[str, Any]]:
         """
@@ -150,6 +175,38 @@ class WorkPackageParser:
         else:
             return None
 
+    def update_status(self, task, status_id: int) -> Dict[str, Any]:
+        """
+        Update the status of a workpackage.
+        :param task: The workpackage to update
+        :param status_id: The new status ID to set
+        :return: The updated workpackage as a dictionary
+        """
+        payload = {
+            'lockVersion': task['lockVersion'],
+            'status': {
+                'id': status_id
+            }
+        }
+        url = f"{self.url}/api/v3/work_packages/{task['id']}"
+        headers = {
+            'content-type': 'application/json'
+        }
+        response = requests.patch(
+            url=url,
+            auth=('apikey', self.apikey),
+            data=json.dumps(payload),
+            headers=headers
+        )
+        if response.status_code in [200, 204]:
+            if response.status_code == 200 and response.text:
+                return response.json()
+            else:
+                return {'success': True, 'status_code': response.status_code}
+        else:   # Error occurred
+            print(f"Failed to update status for workpackage {task['id']}. Status code: {response.status_code}")
+            return None
+    
     def update_member(self, member_id: str, payload) -> Dict[str, Any]:
         """
         update workpackage entry with given member details
@@ -208,7 +265,7 @@ class WorkPackageParser:
             result[dataset_name].append(self.workpackage2dict(workpackage))
         return result
 
-    def get_workpackages(self) -> Dict[str, Any]:
+    def get_open_workpackages(self) -> Dict[str, Any]:
         """
         Get open workpackages from the API.
         :return:

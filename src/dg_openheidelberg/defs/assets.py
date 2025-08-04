@@ -271,5 +271,49 @@ dg.asset(name="create user accounts",
          description="Create user accounts from OpenProject and Nextcloud data")
 def create_user_accounts():
     """Create user accounts from OpenProject and Nextcloud data"""
-    # Load OpenProject tasks with status 'in progress'
-    
+    # Load OpenProject tasks with status 'scheduled'
+    wp = WorkPackageParser()
+    up = UserParser()
+    tasks = wp.get_workpackages(status_id=6, project_id=18)
+    if not tasks:
+        return "No tasks found with status 'scheduled' in OpenProject"
+    for task in tasks:
+        # Create user accounts from task data
+        if task.get('customField8'):
+            new_user_data = {
+                'firstName': task.get('customField5', ''),
+                'lastName': task.get('customField6', ''),
+                'login': task.get('customField20', ''),
+                'email': task.get('customField7', ''),
+                'status': 'invited'  # Assuming status is invited for new users
+            }
+            # Create user in OpenProject
+            
+            user = up.create_user(new_user_data)
+            if user:
+                print(f"User {new_user_data['login']} created successfully in OpenProject")
+                # update task status to 'in progress'
+                wp.update_status(task, 7)  # Assuming status ID 7 is 'in progress'
+            else:
+                print(f"Failed to create user {new_user_data['login']} in OpenProject")
+        if task.get('customField10'):
+            # Create user in Nextcloud
+            nextcloud_user_data = {
+                'username': task.get('customField20', ''),
+                'firstname': task.get('customField5', ''),
+                'lastname': task.get('customField6', ''),
+                'email': task.get('customField7', '')
+            }
+            nextcloud_user = next_client.create_user(firstname=task.get('customField5', ''),
+                                                     lastname=task.get('customField6', ''),
+                                                     email=task.get('customField7', ''),
+                                                     username=task.get('customField20', '')
+                                                     )
+            if nextcloud_user:
+                print(f"User {nextcloud_user_data['username']} created successfully in Nextcloud")
+                # update task status to 'in progress'
+                wp.update_status(task, 7)
+            else:
+                print(f"Failed to create user {nextcloud_user_data['username']} in Nextcloud")
+    return "User accounts created successfully from OpenProject and Nextcloud data"
+         
