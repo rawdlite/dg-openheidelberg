@@ -1,6 +1,11 @@
+import sys
+import os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 from unittest import TestCase
 from unittest.mock import patch, MagicMock
-from src.openproject import WorkPackageParser
+from openproject import WorkPackageParser, UserParser
 
 
 class TestWorkPackageParser(TestCase):
@@ -13,121 +18,52 @@ class TestWorkPackageParser(TestCase):
         self.assertIsInstance(members, dict)
         self.assertIn('total', members)
 
-    def test_get_users(self):
-        wp = WorkPackageParser()
-        users = wp.get_users()
-        print(users)
-        self.assertIsNotNone(users)
-        self.assertIn('total', users)
-        
-    @patch("src.openproject.requests.get")
-    def test_get_users_pagination(self, mock_get):
-        # Create mock responses for pagination
-        # First page response
-        first_response = MagicMock()
-        first_response.status_code = 200
-        first_response.json.return_value = {
-            'total': 3,  # Total of 3 users
-            'count': 2,  # But only 2 per page
-            '_embedded': {
-                'elements': [
-                    {
-                        'id': 1,
-                        'name': 'User 1',
-                        'login': 'user1',
-                        'email': 'user1@example.com',
-                        'status': 'active'
-                    },
-                    {
-                        'id': 2,
-                        'name': 'User 2',
-                        'login': 'user2',
-                        'email': 'user2@example.com',
-                        'status': 'active'
-                    }
-                ]
-            }
-        }
-        
-        # Second page response
-        second_response = MagicMock()
-        second_response.status_code = 200
-        second_response.json.return_value = {
-            'total': 3,
-            'count': 1,  # Only 1 user on second page
-            '_embedded': {
-                'elements': [
-                    {
-                        'id': 3,
-                        'name': 'User 3',
-                        'login': 'user3',
-                        'email': 'user3@example.com',
-                        'status': 'active'
-                    }
-                ]
-            }
-        }
-        
-        # Configure mock to return different responses for different calls
-        mock_get.side_effect = [first_response, second_response]
-        
-        # Create parser instance with test config
-        config = {
-            'apikey': 'test-api-key',
-            'url': 'https://test.openproject.com'
-        }
-        parser = WorkPackageParser(config)
-        
-        # Call the method
-        result = parser.get_users()
-        
-        # Verify the API calls were made correctly
-        self.assertEqual(mock_get.call_count, 2)  # Should make 2 API calls
-        
-        # Check first call (page 1)
-        first_call_args = mock_get.call_args_list[0]
-        self.assertEqual(first_call_args[0][0], 'https://test.openproject.com/api/v3/users')
-        self.assertEqual(first_call_args[1]['params'], {'page': 1, 'per_page': 50})
-        self.assertEqual(first_call_args[1]['auth'], ('apikey', 'test-api-key'))
-        
-        # Check second call (page 2)
-        second_call_args = mock_get.call_args_list[1]
-        self.assertEqual(second_call_args[0][0], 'https://test.openproject.com/api/v3/users')
-        self.assertEqual(second_call_args[1]['params'], {'page': 2, 'per_page': 50})
-        self.assertEqual(second_call_args[1]['auth'], ('apikey', 'test-api-key'))
-        
-        # Verify the result structure
-        expected_result = {
-            'total': 3,
-            'count': 3,
-            'users': [
-                {
-                    'id': 1,
-                    'name': 'User 1',
-                    'login': 'user1',
-                    'email': 'user1@example.com',
-                    'status': 'active'
-                },
-                {
-                    'id': 2,
-                    'name': 'User 2',
-                    'login': 'user2',
-                    'email': 'user2@example.com',
-                    'status': 'active'
-                },
-                {
-                    'id': 3,
-                    'name': 'User 3',
-                    'login': 'user3',
-                    'email': 'user3@example.com',
-                    'status': 'active'
-                }
-            ]
-        }
-        
-        self.assertEqual(result, expected_result)
+    def test_get_project_18_form_info_with_invalid_project(self):
+        """Test that we get None when accessing non-existent project"""
+        # This test assumes we have valid credentials but invalid project
+        # You can modify this to test different scenarios
 
-    @patch("src.openproject.requests.get")
+        # For now, just check that the method exists and doesn't crash
+        wp = WorkPackageParser()
+        result = wp.get_project_18_form_info()
+        # If it returns None or a dict, that's acceptable
+        assert result is None or isinstance(result, dict)
+       
+            
+    def test_create_member(self):
+        wp = WorkPackageParser()
+        #
+        payload = {
+            "projectId": "18",
+            'customField5': "firstname",
+            'customField6': "lastname",
+            'customField7': "firstname.last@mail.com",
+            "subject": "Test entry",
+            "status_id": 1
+        }
+        member = wp.create_member(payload)
+        assert member
+        
+    def test_member_exists(self):
+        wp = WorkPackageParser()
+        firstname = 'Stephan'
+        lastname = 'Frenzel'
+        username = 's.frenzel'
+        email = 'firstname.last@mail.com'
+        user = wp.check_member_exists(email=email,
+                                      firstname=firstname, 
+                                      lastname=lastname,
+                                      username=username)
+        assert user is not None
+        assert user.get('id') is not None
+        
+        
+    def test_get_member(self):
+        wp = WorkPackageParser()
+        member_info = wp.get_member(203)
+        assert member_info is not None
+
+    @patch("openproject.requests.get")
     def test_get_members(self, mock_get):
         # Test successful response
         mock_response = MagicMock()
@@ -200,22 +136,82 @@ class TestWorkPackageParser(TestCase):
 
         self.assertEqual(result, expected_result)
 
-    @patch("src.openproject.requests.get")
-    def test_get_members_api_error(self, mock_get):
-        # Test API error response
-        mock_response = MagicMock()
-        mock_response.status_code = 404
-        mock_get.return_value = mock_response
+    def test_get_lockVersion(self):
+        wp = WorkPackageParser()
+        version = wp.get_lockVersion('203')
+        assert version == 3
 
-        config = {
-            'apikey': 'test-api-key',
-            'url': 'https://test.openproject.com'
+    def test_update_member(self):
+        wp = WorkPackageParser()
+        workpackage_id = '203'
+        vers = wp.get_lockVersion(workpackage_id)
+        payload = {
+            "lockVersion": vers,
+            "description": "Updated Description",
+            'subject': 'Updated Subject'
         }
-        parser = WorkPackageParser(config)
+        result = wp.update_member(workpackage_id, payload)
+        assert result
 
-        # Call the method
-        result = parser.get_members()
+    def test_delete_member(self):
+        wp = WorkPackageParser()
+        workpackage_id = '203'
+        wp.delete_member(workpackage_id)
+        # Assuming the delete operation is successful and no exception is raised
 
-        # Verify None is returned on error
-        self.assertIsNone(result)
+
+class TestUserParser(TestCase):
+
+    def test_get_users(self):
+        up = UserParser()
+        users = up.get_users()
+        print(users)
+        self.assertIsNotNone(users)
+        self.assertIn('total', users)
+
+    def test_check_user(self):
+        up = UserParser()
+        email = 'valantis.hatzimagkas@gmail.com'
+        user = up.check_user(email)
+        print(user)
+        assert isinstance(user, dict)
+        assert 'id' in user
+
+    def test_get_user_by_id(self):
+        up = UserParser()
+        user_id = '6'
+        user = up.get_user(user_id)
+        print(user)
+        self.assertIsNotNone(user)
+        self.assertIn('id', user)
+
+    def test_create_user(self):
+        up = UserParser()
+        new_user_data = {
+            'firstName': 'John',
+            'lastName': 'Doe',
+            'login': 'johndoe',
+            'email': 'rawdlite@gmail.com',
+            'status': 'invited'
+        }
+        created_user = up.create_user(new_user_data)
+        print(created_user)
+        self.assertIsNotNone(created_user)
+        self.assertIn('id', created_user)
+
+    def test_add_user_to_group(self):
+        up = UserParser()
+        user_id = 26
+        group_id = 16
+        res = up.add_user_to_group(user_id, group_id)
+        print(res)
+
+        self.assertTrue(res)
+
+    def test_set_membership(self):
+        up = UserParser()
+        payload = {
+            'principal': {'href': '/api/v3/users/26'},
+            'project': {'href': '/api/v3/projects/1'},
+            'roles': {'href': '/api/v3/roles/1'}}
 

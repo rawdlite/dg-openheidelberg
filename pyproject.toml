@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
+    "couchdb>=1.2",
     "dagster>=1.11.2",
     "nc-py-api[calendar]>=0.6.0",
     "pandas>=2.3.1",
