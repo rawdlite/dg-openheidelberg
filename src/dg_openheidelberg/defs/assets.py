@@ -248,18 +248,8 @@ def create_openproject_member_tasks():
             # User already exists in OpenProject, skip for now
             # TODO: Update existing users
             continue
-        # set account status
-        if doc.get('openproject', "") == "":
-            has_openproject_account = False
-        else:
-            has_openproject_account = True
-        if doc.get('nextcloud', "") == "":
-            has_nextcloud_account = False
-        else:
-            has_nextcloud_account = True
         # Create a new member task in OpenProject
         username = f"{doc.get('firstname', '')[0]}{doc.get('lastname', '')}".lower().replace(" ", "")
-        doc.get('openproject', "")
         payload = {
             'customField5': doc.get('firstname', ''),
             'customField6': doc.get('lastname', ''),
@@ -268,38 +258,18 @@ def create_openproject_member_tasks():
             'subject': doc.get('_id'),
             'status_id': 7, # in progress
             'projectId': '18',  # Assuming project ID is 18
-            'customfield10': has_nextcloud_account,
-            'customfield8': has_openproject_account
+            'customfield10': doc.get('nextcloud', "") != "",
+            'customfield8': doc.get('openproject', "") != ""
         }
         wp.create_member(payload)
     
     return "OpenProject member tasks created successfully"
 
-@dg.asset(name="upload_nextcloud_user_data",
-          description="Upload Processed data to Nextcloud",
-          deps=["nextcloud_user_data"])
-def upload_nextcloud_user_data():
-    next_client.upload_file('nextcloud_user_data.csv', nextcloud_user_data_file)
 
 
-@dg.asset(name="upload_openproject_user_data",
-          description="Upload Processed data to Nextcloud",
-          deps=["openproject_user_data"])
-def upload_openproject_user_data():
-    next_client.upload_file('openproject_user_data.csv', openproject_user_data_file)
-
-@dg.asset(name="merge_user_data",
-          description="Join Dataframes",
-          deps=["openproject_user_data","nextcloud_user_data"])
-def merge_user_data():
-    op = pd.read_csv(openproject_user_data_file)
-    nx = pd.read_csv(nextcloud_user_data_file)
-    res = pd.merge(op,nx,how='outer',on=['firstname','lastname','email','username'])
-    res['action request'] = ""
-    res.to_csv(merged_user_data_file,index=False)
-
-@dg.asset(name="upload_merged_data",
-          description="upload the merged user data",
-          deps=["merge_user_data"])
-def upload_merged_data():
-    next_client.upload_file('/Admin/accounts.csv', merged_user_data_file)
+dg.asset(name="create user accounts",
+         description="Create user accounts from OpenProject and Nextcloud data")
+def create_user_accounts():
+    """Create user accounts from OpenProject and Nextcloud data"""
+    # Load OpenProject tasks with status 'in progress'
+    

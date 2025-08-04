@@ -5,6 +5,23 @@ from config import Config
 
 
 class WorkPackageParser:
+    def get_scheduled_workpackages(self) -> Optional[List[Dict[str, Any]]]:
+        """
+        Get all workpackages with status 6 (scheduled) from project 18 (onboarding).
+        Returns a list of workpackage dicts or None if request fails.
+        """
+        url = f"{self.url}/api/v3/projects/18/work_packages"
+        # OpenProject API filter for status 6 (scheduled)
+        params = {
+            "filters": '[{"status":{"operator":"=","values":["6"]}}]'
+        }
+        response = requests.get(url, params=params, auth=('apikey', self.apikey))
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('_embedded', {}).get('elements', [])
+        else:
+            print(f"Failed to fetch scheduled workpackages. Status code: {response.status_code}")
+            return None
     """
     This class is used to parse the workpackage data from the API.
     """
