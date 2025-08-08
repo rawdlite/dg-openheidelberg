@@ -57,10 +57,12 @@ class TestWorkPackageParser(TestCase):
         lastname = 'Frenzel'
         username = 's.frenzel'
         email = 'firstname.last@mail.com'
-        user = wp.check_member_exists(email=email,
-                                      firstname=firstname, 
-                                      lastname=lastname,
-                                      username=username)
+        user = wp.check_member_exists(
+            email=email,
+            subject="Stephan.Frenzel",
+            firstname=firstname, 
+            lastname=lastname,
+            username=username)
         assert user is not None
         assert user.get('id') is not None
         
@@ -150,7 +152,7 @@ class TestWorkPackageParser(TestCase):
 
     def test_update_member(self):
         wp = WorkPackageParser()
-        workpackage_id = '203'
+        workpackage_id = '237'
         vers = wp.get_lockVersion(workpackage_id)
         payload = {
             "lockVersion": vers,
@@ -159,6 +161,15 @@ class TestWorkPackageParser(TestCase):
         }
         result = wp.update_member(workpackage_id, payload)
         assert result
+        
+    def test_update_status(self):
+        wp = WorkPackageParser()
+        workpackage_id = '237'
+        member = wp.get_member(workpackage_id)
+        status = 'In progress'
+        result = wp.update_status(member, status)
+        assert result
+        assert result.get('_links', {}).get('status', {}).get('title') == status
 
     def test_delete_member(self):
         wp = WorkPackageParser()

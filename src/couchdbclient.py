@@ -32,6 +32,21 @@ class Client:
         Example usage: db.find(Client.mango_filter_by_email('user@example.com'))
         """
         return {"email": {"$eq": email}}
+    
+    def get_docs_without_member_id(self) -> List[Dict[str, Any]]:
+        """
+        Fetch all documents from CouchDB where the key 'member_id' is not present in the document.
+        Returns:
+            List of documents without the 'openpromember_idject' key
+        """
+        # Mango query: find docs where 'member_id' does not exist
+        mango_query = {"selector": 
+            {"member_id": 
+                {"$exists": False}
+                }
+            }
+        result = self.db.find(mango_query)
+        return list(result)
 
     def get_docs_without_openproject_key(self) -> List[Dict[str, Any]]:
         """

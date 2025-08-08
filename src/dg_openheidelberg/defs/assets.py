@@ -11,6 +11,73 @@ merged_user_data_file = "src/dg_openheidelberg/defs/data/accounts.csv"
 wp = WorkPackageParser()
 next_client = NextcloudClient()
 
+def migration_couchdb():
+    """
+    refactoring of couchdb doc structure
+    """
+    # Initialize CouchDB client
+    client = Client()
+    wp = WorkPackageParser()
+    # Fetch all documents from CouchDB
+    #docs = client.get_docs_without_member_id()
+    rows = client.db.view('_all_docs', include_docs=True)
+    for row in rows:
+        doc = row['doc']
+        if doc['_id'].startswith('_design/'):
+            continue
+        if doc.get('firstname') != doc.get('firstname', '').capitalize():
+            doc['firstname'] = doc['firstname'].capitalize()
+        if doc.get('lastname') != doc.get('lastname', '').capitalize():
+            doc['lastname'] = doc['lastname'].capitalize()
+        # Check if the document already has a member_id
+        if 'member_id' in doc:
+            member = wp.get_member(doc['member_id'])
+        else:
+            # Get matching openproject member task
+            member = wp.check_member_exists(
+                subject=f"{doc.get('firstname', '')} {doc.get('lastname', '')}",
+                firstname=doc.get('firstname', ''),
+                lastname=doc.get('lastname', ''),
+                username=doc.get('username', ''),
+                email=doc.get('email', ''))
+            # Update the document with the member task ID
+            if member:
+                doc['member_id'] = member['id']
+                # Save the updated document back to CouchDB
+                client.db.save(doc)
+        doc_id = doc['_id'] 
+        if doc_id != doc_id.lower():
+            # Update the document ID to lowercase
+            doc['_id'] = doc_id.lower()
+            res = client.db.save(doc)
+            if res[0] == doc['_id']:
+                old_doc = client.db.get(doc_id)
+                client.db.delete(old_doc)
+            print(f"Updated document ID from {doc_id} to {doc['_id']}")
+        if not member:
+            print(f"Member not found for doc: {doc.get('_id', '')}")
+            wp.create_member_from_doc(doc)
+        else:
+            # Update the member task in OpenProject
+            wp.fix_member_task(member_task=member, doc=doc)
+    return "Migration completed successfully"   
+                
+def fix_doc_id(doc: dict) -> dict:
+    """
+    Fix the document ID to ensure it is in the correct format.
+    """
+    client = Client()
+    doc_id = doc['_id'] 
+    if doc_id != doc_id.lower():
+        # Update the document ID to lowercase
+        doc['_id'] = doc_id.lower()
+        doc.pop('_rev')
+        res = client.db.save(doc)
+        if res[0] == doc['_id']:
+            old_doc = client.db.get(doc_id)
+            client.db.delete(old_doc)
+        print(f"Updated document ID from {doc_id} to {doc['_id']}")
+    return doc
 
 def get_nextcloud_status(row):
     user = next_client.check_user(username = row['username'],
@@ -117,6 +184,7 @@ def user_initialisation():
     client = Client()
     # Fetch documents without 'openproject' key
     docs = client.get_docs_without_openproject_key()
+    #docs = client.get_docs_without_member_task_key()
     for doc in docs:
         payload = {
             'customField5': doc.get('firstname', ''),
@@ -128,13 +196,10 @@ def user_initialisation():
         }
         # Create user in OpenProject
         res = wp.create_member(payload)
+        # If user creation was successful, update CouchDB document
         if res:
-            doc['openproject'] = {
-                'status': res['status'],
-                'admin': res['admin'],
-                'createdAt': res['createdAt']
-            }
-            client.update_doc(doc)
+            doc['member_id'] = res['id']
+            client.db.save(doc)
         return res
     
 @dg.asset(name="validate_user_openproject", description="Validate user data from OpenProject")
@@ -226,8 +291,6 @@ def user_nextcloud_data():
         client.db.save(doc)
     return res
 
-
-
 @dg.asset(name="create_openproject_member_tasks",
           description="Create OpenProject member tasks from couchdb entries",
             deps=["validate_user_openproject","validate_user_nextcloud"])
@@ -235,33 +298,40 @@ def create_openproject_member_tasks():
     """Create OpenProject member tasks from CouchDB entries"""
     client = Client()
     wp = WorkPackageParser()
-    for row in client.db.view('_all_docs', include_docs=True):
-        if row['id'].startswith('_design/'):
+    docs = client.get_docs_without_member_id()
+    #for row in client.db.view('_all_docs', include_docs=True):
+    #   if row['id'].startswith('_design/'):
+    #   doc = row.get('doc', {})
+    for doc in docs:
+        if doc['_id'].startswith('_design/'):
             continue
-        doc = row.get('doc', {})
-        if wp.check_member_exists(
-            subject=doc.get('_id', ''),
-            firstname=doc.get('firstname', ''),
-            lastname=doc.get('lastname', ''),
-            username=doc.get('username', ''),
-            email=doc.get('email', '')):
-            # User already exists in OpenProject, skip for now
-            # TODO: Update existing users
-            continue
-        # Create a new member task in OpenProject
-        username = f"{doc.get('firstname', '')[0]}{doc.get('lastname', '')}".lower().replace(" ", "")
-        payload = {
-            'customField5': doc.get('firstname', ''),
-            'customField6': doc.get('lastname', ''),
-            'customField7': doc.get('email', ''),
-            'customField20': username,
-            'subject': doc.get('_id'),
-            'status_id': 7, # in progress
-            'projectId': '18',  # Assuming project ID is 18
-            'customfield10': doc.get('nextcloud', "") != "",
-            'customfield8': doc.get('openproject', "") != ""
-        }
-        wp.create_member(payload)
+        # Ensure the document ID is in lowercase
+        doc = fix_doc_id(doc)
+        if not doc.get('username'):
+            username = f"{doc.get('firstname', '')[0]}{doc.get('lastname', '')}".lower().replace(" ", "")
+            doc['username'] = username
+        #if 'member_id' in doc:
+        #    member = wp.get_member(doc['member_id'])
+        #else:
+        #    member = wp.check_member_exists(
+        #        subject=doc.get('_id', ''),
+        #        firstname=doc.get('firstname', ''),
+        #        lastname=doc.get('lastname', ''),
+        #        username=doc.get('username', ''),
+        #        email=doc.get('email', ''))
+        #    if member:
+        #        doc['member_id'] = member['id']
+        #if member:
+        #    # User already exists in OpenProject
+        #    # Update existing users member_task
+        #    wp.fix_member_task(member_task=member,doc=doc)
+        #else:
+        member = wp.initialize_member_from_doc(doc=doc)
+        doc['member_id'] = member['id']
+        client.db.save(doc)
+    # Return a success message
+    print("OpenProject member tasks created successfully")
+        
     
     return "OpenProject member tasks created successfully"
 

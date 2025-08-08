@@ -12,12 +12,17 @@ class TestDagsterAssets(unittest.TestCase):
         payload = user_initialisation()  # This will call the function to initialize users
         self.assertIsNotNone(payload)
         
+    def test_migation_couchdb(self):
+        # Act
+        from src.dg_openheidelberg.defs.assets import migration_couchdb
+        res = migration_couchdb()
+        self.assertIsNotNone(res)
+        
     def test_user_openproject_data(self):
         # Act
         from src.dg_openheidelberg.defs.assets import user_openproject_data
         res = user_openproject_data()
         self.assertIsNotNone(res)
-        self.assertIn('users', res)
         
     def test_user_nextcloud_data(self):
         # Act

@@ -3,6 +3,39 @@ import json
 from typing import Optional, List, Dict, Any
 from config import Config
 
+CUSTOMFIELD = {
+    'email': 'customField7',
+    'firstname': 'customField5',
+    'lastname': 'customField6',
+    'username': 'customField20',
+    'agenda': 'customField2',
+    'xwiki': 'customField16',
+    'git': 'customField17',
+    'nextcloud': 'customField10',
+    'openproject': 'customField8',
+    'public key': 'customField12',
+    'telephone': 'customField13',
+    'training': 'customField18',
+    'altstadt': 'customField15',
+    'neuenheim': 'customField14'
+}
+STATUS = {
+    'New': 1,
+    'In specification': 2,
+    'Specified': 3,
+    'Confirmed': 4,
+    'To be scheduled': 5,
+    'Scheduled': 6,
+    'In progress': 7,
+    'Developed': 8,
+    'In testing': 9,
+    'Tested': 10,
+    'Test failed': 11,
+    'Closed': 12,
+    'On hold': 13,
+    'Rejected': 14
+}
+
 
 class WorkPackageParser:
     """
@@ -27,7 +60,7 @@ class WorkPackageParser:
                 email: str,
                 username: str = '',
                 firstname: str = '',
-                lastname: str = '') -> Dict[str, Any]:
+                lastname: str = '') -> Dict[str, Any]|None:
         """
         Check if a user exists in the Openproject App using the API.
         :param email:
@@ -37,19 +70,23 @@ class WorkPackageParser:
         :return: Dictionary containing the user data or None if the user does not exist
         """
         if not self.members:
-            url = f"{self.url}/api/v3/projects/18/work_packages"
-            response = requests.get(url, auth=('apikey', self.apikey))
-            if response.status_code == 200:
-                self.members = response.json().get('_embedded', {}).get('elements', [])
+            self.members = self.get_members().get('members', [])
+        # Check if the user exists in the members list
         for user in self.members:
-            if user['subject'] == subject \
-                or user['customField20'] == username \
-                or user['customField7'] == email \
-                or (user['customField5'] == firstname and user['customField6'] == lastname):
+            if user.get(CUSTOMFIELD['email']) and email:
+                if user[CUSTOMFIELD['email']] == email:
+                    return user
+            if user['subject'].lower() == subject.lower():
                 return user
+            if user.get(CUSTOMFIELD['username']) and username:
+                if user[CUSTOMFIELD['username']].lower() == username.lower():
+                    return user
+            if user.get(CUSTOMFIELD['firstname']) and user.get(CUSTOMFIELD['lastname']):
+                if user[CUSTOMFIELD['firstname']].lower() == firstname.lower() and user[CUSTOMFIELD['lastname']].lower() == lastname.lower():
+                    return user
         return None
-
-    def get_workpackages(self, project_id: int = None, status_id: int = None) -> Optional[List[Dict[str, Any]]]:
+    
+    def get_workpackages(self, project_id: int|None = None, status_id: int|None = None) -> Optional[List[Dict[str, Any]]]:
         """
         Get all workpackages from the API for a specific project.
         :param project_id: The ID of the project to fetch workpackages from
@@ -73,23 +110,6 @@ class WorkPackageParser:
             print(f"Failed to fetch workpackages. Status code: {response.status_code}")
             return None 
         
-   
-        """
-        Get all workpackages with status 6 (scheduled) from project 18 (onboarding).
-        Returns a list of workpackage dicts or None if request fails.
-        """
-        url = f"{self.url}/api/v3/projects/18/work_packages"
-        # OpenProject API filter for status 6 (scheduled)
-        params = {
-            "filters": '[{"status":{"operator":"=","values":["6"]}}]'
-        }
-        response = requests.get(url, params=params, auth=('apikey', self.apikey))
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('_embedded', {}).get('elements', [])
-        else:
-            print(f"Failed to fetch scheduled workpackages. Status code: {response.status_code}")
-            return None
 
     def get_project_18_form_info(self) -> Optional[Dict[str, Any]]:
         """
@@ -110,17 +130,46 @@ class WorkPackageParser:
             print(f"Failed to fetch form information for project 18. Status code: {response.status_code}")
             return None
 
-    def get_members(self) -> List[Dict[str, Any]]:
+    def get_members(self) -> Dict[str, Any]:
         """
         Get the workpackages from the API.
         :return:
         """
         url = f"{self.url}/api/v3/projects/18/work_packages"
-        response = requests.get(url, auth=('apikey', self.apikey))
-        if response.status_code == 200:
-            return self.build_result_dict(response, dataset_name='members')
-        else:
+        all_members = []
+        params = {
+            'offset': 1,
+            'pageSize': 20
+        }
+        response = requests.get(url, params=params, auth=('apikey', self.apikey))
+
+        if response.status_code != 200:
             return None
+        response_data = response.json()
+        total_members = response_data['total']
+        if '_embedded' in response_data and 'elements' in response_data['_embedded']:
+            all_members += response_data['_embedded']['elements']
+
+        while response_data['_links'].get('nextByOffset'):
+            url = f"{self.url}{response_data['_links']['nextByOffset']['href']}"
+            response = requests.get(url, auth=('apikey', self.apikey))
+            if response.status_code != 200:
+                break
+            response_data = response.json()
+            if '_embedded' in response_data and 'elements' in response_data['_embedded']:
+                all_members += response_data['_embedded']['elements']
+
+            # Check if we've retrieved all users
+            if len(all_members) >= total_members:
+                break
+
+        # Build the final result
+        result = {
+            'total': total_members,
+            'count': len(all_members),
+            'members': all_members
+        }
+        return result
 
     def get_member(self, member_id: int) -> Optional[Dict[str, Any]]:
         """
@@ -174,38 +223,97 @@ class WorkPackageParser:
             return response.json()
         else:
             return None
+    
+    def initialize_member_from_doc(self, doc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Initialize a member in OpenProject from a document.
+        :param doc: The document containing user data
+        :return: The created member as a dictionary or None if creation fails
+        """
+        payload = {
+            'subject': doc['_id'],
+            CUSTOMFIELD['email']: doc.get('email', ''),
+            CUSTOMFIELD['firstname']: doc.get('firstname', '').capitalize(),
+            CUSTOMFIELD['lastname']: doc.get('lastname', '').capitalize(),
+            CUSTOMFIELD['username']: doc.get('username', ''),
+            '_links': {
+                'status': {'href': f"/api/v3/statuses/{STATUS['New']}"}
+            }
+        }
+        res = self.create_member(payload)
+        if res is not None:
+            return res
+        return None
 
-    def update_status(self, task, status_id: int) -> Dict[str, Any]:
+    def update_member_from_doc(self, doc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Update a member in OpenProject from a document.
+        :param doc: The document containing user data
+        :return: The created member as a dictionary or None if creation fails
+        """
+        payload = {
+            'subject': doc['_id'],
+            'description': doc.get('description', ''),
+            CUSTOMFIELD['email']: doc.get('email', ''),
+            CUSTOMFIELD['firstname']: doc.get('firstname', '').capitalize(),
+            CUSTOMFIELD['lastname']: doc.get('lastname', '').capitalize(),
+            CUSTOMFIELD['username']: doc.get('username', ''),
+            CUSTOMFIELD['nextcloud']: doc.get('nextcloud', "") != "",
+            CUSTOMFIELD['openproject']: doc.get('openproject', "") != "",
+            'lockVersion': 0,
+            '_links': {
+                'status': {'href': f"/api/v3/statuses/{STATUS['New']}"}
+            }
+        }
+        res = self.create_member(payload)
+        if res is not None:
+            return res
+        return None
+
+    def update_member_task(self, doc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Update the member task in OpenProject.
+        :param doc: The document containing user data
+        :return: The updated member task or None if update fails
+        """
+        member_task = self.get_member(doc['member_id'])
+        if member_task is None:
+            print(f"Member task with ID {doc['member_id']} not found.")
+            return None
+        payload = {
+            'lockVersion': member_task['lockVersion'],
+            "_links": {
+  	            "status": { "href": f"/api/v3/statuses/{STATUS['In progress']}" }
+            },
+            CUSTOMFIELD['nextcloud']: hasattr(doc, 'nextcloud'),
+            CUSTOMFIELD['openproject']: hasattr(doc, 'openproject')
+        }
+        if member_task[CUSTOMFIELD['firstname']].capitalize() != member_task[CUSTOMFIELD['firstname']]:
+            payload[CUSTOMFIELD['firstname']] = member_task[CUSTOMFIELD['firstname']].capitalize()
+        if member_task[CUSTOMFIELD['lastname']].capitalize() != member_task[CUSTOMFIELD['lastname']]:
+            payload[CUSTOMFIELD['lastname']] = member_task[CUSTOMFIELD['lastname']].capitalize()
+        if member_task['subject'] != doc['_id']:
+            payload['subject'] = doc['_id']
+        res = self.update_member(member_id=member_task['id'], payload=payload)
+        if res is not None:
+            return res
+        return None
+
+    def update_status(self, task, status: str) -> Dict[str, Any]:
         """
         Update the status of a workpackage.
         :param task: The workpackage to update
-        :param status_id: The new status ID to set
+        :param status: The new status to set
         :return: The updated workpackage as a dictionary
         """
         payload = {
             'lockVersion': task['lockVersion'],
-            'status': {
-                'id': status_id
-            }
+            "_links": {
+  	            "status": { "href": f"/api/v3/statuses/{STATUS[status]}" }
+            }    
         }
-        url = f"{self.url}/api/v3/work_packages/{task['id']}"
-        headers = {
-            'content-type': 'application/json'
-        }
-        response = requests.patch(
-            url=url,
-            auth=('apikey', self.apikey),
-            data=json.dumps(payload),
-            headers=headers
-        )
-        if response.status_code in [200, 204]:
-            if response.status_code == 200 and response.text:
-                return response.json()
-            else:
-                return {'success': True, 'status_code': response.status_code}
-        else:   # Error occurred
-            print(f"Failed to update status for workpackage {task['id']}. Status code: {response.status_code}")
-            return None
+        result =self.update_member(member_id=task['id'],payload=payload)
+        return result
     
     def update_member(self, member_id: str, payload) -> Dict[str, Any]:
         """
