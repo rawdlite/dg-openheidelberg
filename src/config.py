@@ -14,5 +14,5 @@ class Config:
         self.configfile = configfile
         self.config = toml.load(configfile)
 
-    def get(self, key) -> dict | None:
-        return self.config.get(key)
+    def get(self, key) -> dict:
+        return self.config.get(key, {})

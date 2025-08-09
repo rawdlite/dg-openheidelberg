@@ -7,16 +7,16 @@ class Client:
     A simple CouchDB client to interact with a CouchDB database.
     """
 
-    def __init__(self):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize the CouchDB client.
         Loads configuration from the Config class.
         """
-        config = Config().get('couchdb')
-        couchdb_server = config.get('couchdb_server') or "localhost:5984"
-        couchdb_username = config.get('couchdb_username') or ''
-        couchdb_password = config.get('couchdb_password') or ''
-        database_name = config.get('couchdb_db')
+        self.config = config or Config().get('couchdb')
+        couchdb_server = self.config.get('couchdb_server') or "localhost:5984"
+        couchdb_username = self.config.get('couchdb_username') or ''
+        couchdb_password = self.config.get('couchdb_password') or ''
+        database_name = self.config.get('couchdb_db')
         if couchdb_username and couchdb_password:
             server_url = f"https://{couchdb_username}:{couchdb_password}@{couchdb_server}"
         else:
@@ -47,6 +47,46 @@ class Client:
             }
         result = self.db.find(mango_query)
         return list(result)
+    
+    def get_doc_by_member_id(self, member_id):
+        """Find doc by member_id"""
+        mango_query = {
+            "selector": {
+                "member_id": {
+                "$eq": member_id
+                }
+            }
+        }
+        result = self.db.find(mango_query)
+        return list(result)[0] if result else None
+    
+    def get_doc_by_nextcloud_id(self, nextcloud_id):
+        """Find doc by nextcloud_id"""
+        mango_query = {
+            "selector": {
+                "nextcloud": {
+                   "nextcloud_id": {
+                       "$eq": nextcloud_id
+                   }
+               }
+            }
+        }
+        result = self.db.find(mango_query)
+        return list(result)[0] if result else None
+    
+    def get_doc_by_openproject_id(self, openproject_id):
+        """Find doc by openproject_id"""
+        mango_query = {
+            "selector": {
+                "openproject": {
+                   "openproject_id": {
+                       "$eq": openproject_id
+                   }
+               }
+            }
+        }
+        result = self.db.find(mango_query)
+        return list(result)[0] if result else None
 
     def get_docs_without_openproject_key(self) -> List[Dict[str, Any]]:
         """
@@ -63,3 +103,12 @@ class Client:
             }
         result = self.db.find(mango_query)
         return list(result)
+
+    def get_all_docs(self) -> List[Dict[str, Any]]:
+        """
+        Fetch all documents from the CouchDB database excluding design documents.
+        Returns:
+            List of all documents in the database
+        """
+        rows = self.db.view('app/all_entries')
+        return [row.value for row in rows]

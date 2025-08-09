@@ -8,8 +8,8 @@ class NextcloudClient:
     Nextcloud client to interact with the Nextcloud API
     """
 
-    def __init__(self) -> None:
-        self.config = Config().get('nextcloud')
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+        self.config = config or Config().get('nextcloud')
         self.nc = Nextcloud(nextcloud_url=self.config['url'], nc_auth_user=self.config['username'], nc_auth_pass=self.config['password'])
         self.users = []
 
@@ -37,7 +37,7 @@ class NextcloudClient:
                    email: str,
                    username: str,
                    firstname: str,
-                   lastname: str) -> Dict[str, Any]:
+                   lastname: str) -> Dict[str, Any]|None:
         if not self.users:
             self.users = self.get_users()
         for user in self.users:
@@ -59,12 +59,31 @@ class NextcloudClient:
         with open(local_path, 'wb') as f:
             self.nc.files.download2stream(remote_file, f)
 
-    def create_user(self, email: str, username: str, firstname: str, lastname: str) -> Dict[str, Any]:
+    def create_user(self, userdata):
         """Create a new user in Nextcloud."""
         try:
-            self.nc.users.create(user_id=username, email=email, display_name=f"{firstname} {lastname}")
-            user = self.nc.users.get_user(username)
+            #self.nc.users.create(user_id=userdata['username'], email=userdata['email'], display_name=f"{userdata['firstname']} {userdata['lastname']}")
+            user = self.nc.users.get_user(userdata['username'])
             return user
         except Exception as e:
             print(f"Error creating user: {e}")
             return None
+
+    def user_info(self, user):
+        """
+        define nextcloud user info
+        """
+        return {
+            'nextcloud_id': user.user_id,
+            'nextcloud_displayname': user.display_name,
+            'nextcloud_email': user.email,
+            'nextcloud_address': user.address,
+            'nextcloud_enabled': user.enabled,
+            'nextcloud_phone': user.phone,
+            'nextcloud_role': user.role,
+            'nextcloud_headline': user.headline,
+            'nextcloud_language': user.language,
+            'nextcloud_quota': user.quota,
+            'nextcloud_groups': user.groups,
+            'nextcloud_last_login': user.last_login.strftime("%d.%m.%Y")
+        }
