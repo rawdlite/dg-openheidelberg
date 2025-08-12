@@ -3,4 +3,9 @@ _pycache__/
 .idea
 .env
 .aider*
+.tmp*
+.continue*
+.vscode
+CHANGES.md
+copilot-instructions.md
 src/dg_openheidelberg/defs/data/*.csv

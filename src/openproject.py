@@ -84,7 +84,7 @@ class WorkPackageParser:
                     return user
         return None
     
-    def get_workpackages(self, project_id: int|None = None, status_id: int|None = None) -> Optional[List[Dict[str, Any]]]:
+    def get_workpackages(self, project_id: int|None = None, status_id: int|None = None) -> List[Dict[str, Any]]:
         """
         Get all workpackages from the API for a specific project.
         :param project_id: The ID of the project to fetch workpackages from
@@ -106,7 +106,7 @@ class WorkPackageParser:
             return data.get('_embedded', {}).get('elements', [])
         else:
             print(f"Failed to fetch workpackages. Status code: {response.status_code}")
-            return None 
+            return []
         
     def get_members(self) -> Dict[str, Any]:
         """
@@ -248,13 +248,13 @@ class WorkPackageParser:
             return res
         return None
 
-    def update_member_task(self, doc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_member_task(self, doc: Dict[str, Any], member: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """
         Update the member task in OpenProject.
         :param doc: The document containing user data
         :return: The updated member task or None if update fails
         """
-        member_task = self.get_member(doc['member_id'])
+        member_task = member or self.get_member(doc['member_id'])
         if member_task is None:
             print(f"Member task with ID {doc['member_id']} not found.")
             return None
@@ -263,8 +263,8 @@ class WorkPackageParser:
             "_links": {
   	            "status": { "href": f"/api/v3/statuses/{STATUS['In progress']}" }
             },
-            CUSTOMFIELD['nextcloud']: hasattr(doc, 'nextcloud'),
-            CUSTOMFIELD['openproject']: hasattr(doc, 'openproject')
+            CUSTOMFIELD['nextcloud']: doc.get('nextcloud', "") != "",
+            CUSTOMFIELD['openproject']: doc.get('openproject', "") != ""
         }
         if member_task[CUSTOMFIELD['firstname']].capitalize() != member_task[CUSTOMFIELD['firstname']]:
             payload[CUSTOMFIELD['firstname']] = member_task[CUSTOMFIELD['firstname']].capitalize()
@@ -272,6 +272,7 @@ class WorkPackageParser:
             payload[CUSTOMFIELD['lastname']] = member_task[CUSTOMFIELD['lastname']].capitalize()
         if member_task['subject'] != doc['_id']:
             payload['subject'] = doc['_id']
+        # TODO: set telephone etc if empy in member
         res = self.update_member(member_id=member_task['id'], payload=payload)
         if res is not None:
             return res

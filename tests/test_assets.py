@@ -41,6 +41,11 @@ class TestDagsterAssets(unittest.TestCase):
         from src.dg_openheidelberg.defs.assets import create_nextcloud_user_accounts
         res = create_nextcloud_user_accounts()
         self.assertIsNotNone(res)
+        
+    def test_update_couchdb(self):
+        from src.dg_openheidelberg.defs.assets import update_couchdb
+        res = update_couchdb()
+        self.assertIsNotNone(res)
 
 if __name__ == "__main__":
     unittest.main()

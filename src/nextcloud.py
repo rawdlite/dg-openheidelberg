@@ -1,6 +1,7 @@
 import json
 from typing import Optional, List, Dict, Any
 from nc_py_api import Nextcloud
+from nc_py_api.users import UserInfo
 from config import Config
 
 class NextcloudClient:
@@ -59,17 +60,26 @@ class NextcloudClient:
         with open(local_path, 'wb') as f:
             self.nc.files.download2stream(remote_file, f)
 
-    def create_user(self, userdata):
+    def create_user(self, userdata) -> UserInfo | None:
         """Create a new user in Nextcloud."""
         try:
-            #self.nc.users.create(user_id=userdata['username'], email=userdata['email'], display_name=f"{userdata['firstname']} {userdata['lastname']}")
-            user = self.nc.users.get_user(userdata['username'])
+            self.nc.users.create(user_id=userdata['username'], email=userdata['email'], display_name=f"{userdata['firstname']} {userdata['lastname']}")
+            user = self.get_user(userdata['username'])
             return user
         except Exception as e:
             print(f"Error creating user: {e}")
             return None
 
-    def user_info(self, user):
+    def get_user(self, user_id: str) -> UserInfo | None:
+        """Get a user from Nextcloud by user ID."""
+        try:
+            user = self.nc.users.get_user(user_id)
+            return user
+        except Exception as e:
+            print(f"Error getting user: {e}")
+            return None
+
+    def user_info(self, user: UserInfo) -> Dict[str, Any]:
         """
         define nextcloud user info
         """

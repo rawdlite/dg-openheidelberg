@@ -48,18 +48,35 @@ class Client:
         result = self.db.find(mango_query)
         return list(result)
     
-    def get_doc_by_member_id(self, member_id):
+    def get_doc_by_member_id(self, member_id: str):
         """Find doc by member_id"""
+        try:
+            mid = int(member_id)
+        except ValueError:
+            print(f"Invalid member_id: {member_id}. It should be an integer.")
+            return
         mango_query = {
             "selector": {
                 "member_id": {
-                "$eq": member_id
+                "$eq": mid
                 }
             }
         }
         result = self.db.find(mango_query)
-        return list(result)[0] if result else None
+        return list(result)
     
+    def get_doc_by_email(self, email: str):
+        """Find doc by email"""
+        mango_query = {
+            "selector": {
+                "email": {
+                    "$eq": email
+                }
+            }
+        }
+        result = self.db.find(mango_query)
+        return list(result) if result else None
+
     def get_doc_by_nextcloud_id(self, nextcloud_id):
         """Find doc by nextcloud_id"""
         mango_query = {
@@ -72,7 +89,7 @@ class Client:
             }
         }
         result = self.db.find(mango_query)
-        return list(result)[0] if result else None
+        return list(result) if result else None
     
     def get_doc_by_openproject_id(self, openproject_id):
         """Find doc by openproject_id"""
@@ -86,7 +103,7 @@ class Client:
             }
         }
         result = self.db.find(mango_query)
-        return list(result)[0] if result else None
+        return list(result) if result else None
 
     def get_docs_without_openproject_key(self) -> List[Dict[str, Any]]:
         """
