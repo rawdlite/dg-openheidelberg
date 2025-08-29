@@ -6,10 +6,10 @@ class TestDagsterAssets(unittest.TestCase):
         # Initialize client with real config
         self.client = Client()
         
-    def test_initialize_user(self):
+    def test_create_openproject_member_tasks(self):
         # Act
-        from src.dg_openheidelberg.defs.assets import user_initialisation
-        payload = user_initialisation()  # This will call the function to initialize users
+        from src.dg_openheidelberg.defs.assets import create_openproject_member_tasks
+        payload = create_openproject_member_tasks()  # This will call the function to initialize users
         self.assertIsNotNone(payload)
         
     def test_user_openproject_data(self):

@@ -15,6 +15,19 @@ wp = WorkPackageParser()
 up = UserParser()
 next_client = NextcloudClient()
 
+def replace_umlauts(text: str) -> str:
+    """replace special German umlauts (vowel mutations) from text. 
+    ä -> ae, Ä -> Ae...
+    ü -> ue, Ü -> Ue...
+    ö -> oe, Ö -> Oe...
+    ß -> ss
+    """
+    vowel_char_map = {
+        ord('ä'): 'ae', ord('ü'): 'ue', ord('ö'): 'oe', ord('ß'): 'ss',
+        ord('Ä'): 'Ae', ord('Ü'): 'Ue', ord('Ö'): 'Oe'
+    }
+    return text.translate(vowel_char_map)
+
 # INITIALISATION PIPELINE
 @dg.asset(name="user_onboarding_csv",
           group_name="initialisation",
@@ -69,11 +82,13 @@ def check_user_onboarding_has_email_data():
         )
         
 # CREATE MEMBER TASKS PIPELINE
-@dg.asset(group_name="initialisation",
+@dg.asset(name='create_openproject_member_tasks',
+          group_name="initialisation",
           description="Write initial user onboarding task from couchdb",
           deps=["user_onboarding_csv"])
-def user_initialisation():
-    """Write initial user onboarding task to OpenProject"""
+def create_openproject_member_tasks():
+    """couch-->op
+    Write initial user onboarding task to OpenProject"""
     #initialize couchdb client
     client = Client()
     # Fetch documents without 'openproject' key
@@ -95,28 +110,28 @@ def user_initialisation():
 # CREATE ACCOUNTS PIPELINES
 
 @dg.asset(group_name="account",
-         description="op->>opu\nCreate openproject user accounts from OpenProject Task data")
-def create_openproject_user_accounts():
-    """Create openproject user accounts from OpenProject task data"""
+          description="op->>opu op->>next\n Create accounts")
+def create_user_accounts():
     # Load OpenProject tasks with status 'scheduled'
     client = Client()
     tasks = wp.get_workpackages(status_id=STATUS['Scheduled'], project_id=18)
     if not tasks:
         return "No tasks found with status 'scheduled' in OpenProject"
     for task in tasks:
+        # Get couchdb entry
         docs = client.get_doc_by_member_id(member_id=task['id'])
         if not docs:
-            wp.add_comment(member_id=task['id'], comment="No CouchDB document found for this member")
+            wp.add_comment(member_id=task['id'], comment="No CouchDB document found for this member\n Something went wrong")
             wp.update_status(task=task, status='In specification')
             continue
         elif len(docs) == 1:
             doc = docs[0]
-            wp.update_member_task(doc=doc, member=task)
         else:
-            wp.add_comment(member_id=task['id'], comment="Multiple CouchDB documents found for this member")
+            wp.add_comment(member_id=task['id'], comment="Multiple CouchDB documents found for this member\n Please fix this first")
             wp.update_status(task=task, status='In specification')
             continue
-        # Create user accounts from task data
+        task[CUSTOMFIELD['username']] = replace_umlauts(task[(CUSTOMFIELD['username'])])
+        # Create openproject user accounts from task data
         if task.get(CUSTOMFIELD['openproject']):
             if doc.get('openproject'):
                 # User already exists in OpenProject
@@ -125,63 +140,40 @@ def create_openproject_user_accounts():
                 # Create user in OpenProject
                 user = up.create_new_user(task=task)
                 if user:
-                    user_info = up.user_info(user)
-                    wp.add_comment(member_id=task['id'],comment=json.dumps(user_info))
-                    doc['openproject'] = user_info
-                    client.db.save(doc)
+                    op_user_info = up.user_info(user)
+                    wp.add_comment(member_id=task['id'],comment=json.dumps(op_user_info))
+                    doc['openproject'] = op_user_info
                     # update task status to 'in progress'
                     wp.update_status(task, 'In progress')  # Assuming status ID 7 is 'in progress'
                 else:
                     wp.add_comment(member_id=task['id'],comment="Failed to create user in OpenProject")
                     wp.update_status(task, 'In specification')
                     print(f"Failed to create user in OpenProject")
-    return "OpenProject user accounts created successfully from task data"  
-
-@dg.asset(group_name="account",
-         description="op->>next\nCreate nextcloud user accounts from OpenProject task data")
-def create_nextcloud_user_accounts():
-    """Create nextcloud user accounts from OpenProject task data"""
-    # Load OpenProject tasks with status 'scheduled'
-    wp = WorkPackageParser()
-    up = UserParser()
-    client = Client()
-    tasks = wp.get_workpackages(status_id=STATUS['Scheduled'], project_id=18)
-    if not tasks:
-        return "No tasks found with status 'scheduled' in OpenProject"
-    for task in tasks:
-        docs = client.get_doc_by_member_id(member_id=task['id'])
-        # Create user accounts from task data
-        if task.get('customField10'):
+        # Create nextcloud account
+        if task.get(CUSTOMFIELD['nextcloud']):
             # Create user in Nextcloud
             nextcloud_user_data = {
-                'username': task.get('customField20', ''),
-                'firstname': task.get('customField5', ''),
-                'lastname': task.get('customField6', ''),
-                'email': task.get('customField7', '')
+                'username': task.get(CUSTOMFIELD['username'], ''),
+                'firstname': task.get(CUSTOMFIELD['firstname'], ''),
+                'lastname': task.get(CUSTOMFIELD['lastname'], ''),
+                'email': task.get(CUSTOMFIELD['email'], '')
             }
             nextcloud_user = next_client.create_user(nextcloud_user_data)
             if nextcloud_user:
-                user_info = next_client.user_info(nextcloud_user)
-                print(f"User {nextcloud_user_data['username']} created successfully in Nextcloud")
-                wp.add_comment(member_id=task['id'], comment=json.dumps(user_info))
-                if docs and len(docs) == 1:
-                    docs[0]['nextcloud'] = user_info
-                    client.db.save(docs[0])
-                else:
-                    #TODO: Handle case where doc is None
-                    wp.add_comment(member_id=task['id'], comment="No CouchDB document found for this member")
-                # update task status to 'in progress'
-                wp.update_status(task=task, status='In progress')
+                nx_user_info = next_client.user_info(nextcloud_user)
+                doc['nextcloud'] = nx_user_info
+                wp.add_comment(member_id=task['id'], comment=json.dumps(nx_user_info))
             else:
                 wp.add_comment(member_id=task['id'], comment=f"Failed to create user {nextcloud_user_data['username']} in Nextcloud")
                 print(f"Failed to create user {nextcloud_user_data['username']} in Nextcloud")
-    return "User accounts created successfully from OpenProject and Nextcloud data"
+        client.db.save(doc)
+    return "Create user accounts task finished"
+        
          
 # CONSOLIDATION PIPELINE
 
 @dg.asset(name="update_couchdb",
           group_name="consolidation",
-          deps=["create_openproject_user_accounts", "create_nextcloud_user_accounts"],
           description="op->>couch\nUpdate CouchDB with OpenProject user task data"
           )
 def update_couchdb():
@@ -304,7 +296,7 @@ def update_openproject_member_tasks():
     """
     client = Client()
     # Fetch all member tasks in Status In progress
-    tasks = wp.get_workpackages(status_id=STATUS['In Progress'], project_id=18)
+    tasks = wp.get_workpackages(status_id=STATUS['In progress'], project_id=18)
     for member in tasks:
         docs = client.get_doc_by_member_id(member_id=member['id'])   
         if not docs:

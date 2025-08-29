@@ -83,7 +83,7 @@ class WorkPackageParser:
                 if user[CUSTOMFIELD['firstname']].lower() == firstname.lower() and user[CUSTOMFIELD['lastname']].lower() == lastname.lower():
                     return user
         return None
-    
+
     def get_workpackages(self, project_id: int|None = None, status_id: int|None = None) -> List[Dict[str, Any]]:
         """
         Get all workpackages from the API for a specific project.
@@ -240,7 +240,7 @@ class WorkPackageParser:
             CUSTOMFIELD['openproject']: doc.get('openproject', "") != "",
             'lockVersion': 0,
             '_links': {
-                'status': {'href': f"/api/v3/statuses/{STATUS['New']}"}
+                'status': {'href': f"/api/v3/statuses/{STATUS['In specification']}"}
             }
         }
         res = self.create_member(payload)
