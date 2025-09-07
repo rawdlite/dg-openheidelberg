@@ -48,7 +48,7 @@ def create_openproject_member_tasks():
         if member:
             doc['member_id'] = member['id']
             # Save the updated document back to CouchDB
-            client.db.save(doc)
+            client.db.put(doc)
     # Return a success message
     return {"status": "success", "message": "User initialization completed successfully."}
     
@@ -111,7 +111,7 @@ def create_user_accounts():
             else:
                 wp.add_comment(member_id=task['id'], comment=f"Failed to create user {nextcloud_user_data['username']} in Nextcloud")
                 print(f"Failed to create user {nextcloud_user_data['username']} in Nextcloud")
-        client.db.save(doc)
+        client.db.put(doc)
     return "Create user accounts task finished"
         
          
@@ -153,7 +153,7 @@ def update_couchdb():
                 doc['altstadt'] = member[CUSTOMFIELD['altstadt']]
                 doc['neuenheim'] = member[CUSTOMFIELD['neuenheim']]
                 # Save the updated document back to CouchDB
-                client.db.save(doc)
+                client.db.put(doc)
         else:
             # no member_id means initialisation was not run yet
             continue
@@ -185,7 +185,7 @@ def user_openproject_data():
             # we leave this for now until the delete workflow is specified
             continue
         # Save to CouchDB
-        client.db.save(doc)
+        client.db.put(doc)
     return res
 
 @dg.asset(name="validate_user_nextcloud",
@@ -225,7 +225,7 @@ def user_nextcloud_data():
             continue
         
         # Save to CouchDB
-        client.db.save(doc)
+        client.db.put(doc)
     return res
 
 
@@ -267,10 +267,6 @@ def fix_doc_id(doc: dict) -> dict:
     if doc_id != doc_id.lower():
         # Update the document ID to lowercase
         doc['_id'] = doc_id.lower()
-        doc.pop('_rev')
-        res = client.db.save(doc)
-        if res[0] == doc['_id']:
-            old_doc = client.db.get(doc_id)
-            client.db.delete(old_doc)
+        client.db.put(doc)
         print(f"Updated document ID from {doc_id} to {doc['_id']}")
     return doc

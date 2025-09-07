@@ -1,5 +1,5 @@
 from config import Config
-import couchdb
+import couchdb2
 import os
 from typing import List, Dict, Any, Optional
 
@@ -22,13 +22,14 @@ class Client:
         database_name = self.config.get('couchdb_db')
         if not database_name:
             raise ValueError("CouchDB database name must be specified in the configuration.")
-        if couchdb_username and couchdb_password:
-            server_url = f"https://{couchdb_username}:{couchdb_password}@{couchdb_server}"
-        else:
-            server_url = f"http://{couchdb_server}"
+        server_url = f"https://{couchdb_server}"
         if DEBUG:
             print(f"**couch config**: {self.config}")
-        self.server = couchdb.Server(server_url)
+        self.server = couchdb2.Server(
+            username=couchdb_username,
+            password=couchdb_password,
+            href=server_url
+        )
         self.db = self.server[database_name]
 
     @staticmethod
@@ -46,14 +47,11 @@ class Client:
             List of documents without the 'openpromember_idject' key
         """
         # Mango query: find docs where 'member_id' does not exist
-        mango_query = {"selector": 
-            {"member_id": 
-                {"$exists": False}
-                }
-            }
-        result = self.db.find(mango_query)
-        return list(result)
-    
+
+        selector = {"member_id": {"$exists": False}}
+        result = self.db.find(selector=selector )
+        return list(result.get('docs', []))
+
     def get_doc_by_member_id(self, member_id: str):
         """Find doc by member_id"""
         try:
@@ -61,55 +59,47 @@ class Client:
         except ValueError:
             print(f"Invalid member_id: {member_id}. It should be an integer.")
             return
-        mango_query = {
-            "selector": {
-                "member_id": {
-                "$eq": mid
-                }
-            }
+        selector = {
+            "member_id": {
+            "$eq": mid
+             }
         }
-        result = self.db.find(mango_query)
-        return list(result)
-    
+        result = self.db.find(selector=selector)
+        return list(result.get('docs', [])) if result else None
+
     def get_doc_by_email(self, email: str):
         """Find doc by email"""
-        mango_query = {
-            "selector": {
-                "email": {
-                    "$eq": email
+        selector = {
+            "email": {
+                "$eq": email
                 }
             }
-        }
-        result = self.db.find(mango_query)
-        return list(result) if result else None
+        result = self.db.find(selector=selector)
+        return list(result.get('docs', [])) if result else None
 
     def get_doc_by_nextcloud_id(self, nextcloud_id):
         """Find doc by nextcloud_id"""
-        mango_query = {
-            "selector": {
-                "nextcloud": {
-                   "nextcloud_id": {
-                       "$eq": nextcloud_id
-                   }
-               }
+        selector = {
+            "nextcloud": {
+                "nextcloud_id": {
+                    "$eq": nextcloud_id
+                }
             }
         }
-        result = self.db.find(mango_query)
-        return list(result) if result else None
-    
+        result = self.db.find(selector=selector)
+        return list(result.get('docs', [])) if result else None
+
     def get_doc_by_openproject_id(self, openproject_id):
         """Find doc by openproject_id"""
-        mango_query = {
-            "selector": {
-                "openproject": {
-                   "openproject_id": {
-                       "$eq": openproject_id
-                   }
-               }
+        selector = {
+            "openproject": {
+                "openproject_id": {
+                    "$eq": openproject_id
+                }
             }
         }
-        result = self.db.find(mango_query)
-        return list(result) if result else None
+        result = self.db.find(selector=selector)
+        return list(result.get('docs', [])) if result else None
 
     def get_docs_without_openproject_key(self) -> List[Dict[str, Any]]:
         """
@@ -119,13 +109,13 @@ class Client:
         """
         
         # Mango query: find docs where 'openproject' does not exist
-        mango_query = {"selector": 
-            {"openproject": 
-                {"$exists": False}
-                }
+        selector = {
+            "openproject": {
+                "$exists": False
             }
-        result = self.db.find(mango_query)
-        return list(result)
+        }
+        result = self.db.find(selector=selector)
+        return list(result.get('docs', []))
 
     def get_all_docs(self) -> List[Dict[str, Any]]:
         """
@@ -133,5 +123,5 @@ class Client:
         Returns:
             List of all documents in the database
         """
-        rows = self.db.view('app/all_entries')
-        return [row.value for row in rows]
+        rows = self.db.view('apps', 'all_entries', include_docs=True)
+        return [row.doc for row in rows if not row.id.startswith('_design/')]

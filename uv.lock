@@ -312,12 +312,16 @@ wheels = [
 ]
 
 [[package]]
-name = "couchdb"
-version = "1.2"
+name = "couchdb2"
+version = "1.13.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7c/c8/f94a107eca0c178e5d74c705dad1a5205c0f580840bd1b155cd8a258cb7c/CouchDB-1.2.tar.gz", hash = "sha256:1386a1a43f25bed3667e3b805222054940d674fa1967fa48e9d2012a18630ab7", size = 65880, upload-time = "2018-02-09T13:12:52.727Z" }
+dependencies = [
+    { name = "requests" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1a/c0/aad8f6be8b2ebd71e95454296aa2390d6beb81d5f7a0bc4b3804509f3278/CouchDB2-1.13.0.tar.gz", hash = "sha256:c77adb7e91cbda73507db5bc1b4ae323e8a27a0a90086ba5f82f740b08cf40fe", size = 33857, upload-time = "2021-11-04T15:30:21.567Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ff/35/6660f7526c5d509b13264b27642de73754bd3d0addf56b175601c8b951e1/CouchDB-1.2-py2.py3-none-any.whl", hash = "sha256:13a28a1159c49f8346732e8724b9a4d65cba54bec017c4a7eeb1499fe88151d1", size = 67954, upload-time = "2018-02-09T13:12:50.581Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/dc/1e3774fd10a919d22faf83e2918e674f0f57cd34d05626dd399eeab0e222/CouchDB2-1.13.0-py3-none-any.whl", hash = "sha256:95aa9a0ac7d7644b28654084a1ecf4316b49755e531b5f3f285cbd7c68ef8c5c", size = 24243, upload-time = "2021-11-04T15:30:19.299Z" },
 ]
 
 [[package]]
@@ -538,7 +542,7 @@ name = "dg-openheidelberg"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "couchdb" },
+    { name = "couchdb2" },
     { name = "dagster" },
     { name = "nc-py-api", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, extra = ["calendar"], marker = "python_full_version < '3.10'" },
     { name = "nc-py-api", version = "0.21.1", source = { registry = "https://pypi.org/simple" }, extra = ["calendar"], marker = "python_full_version >= '3.10'" },
@@ -554,7 +558,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "couchdb", specifier = ">=1.2" },
+    { name = "couchdb2", specifier = ">=1.13.0" },
     { name = "dagster", specifier = "==1.11.9" },
     { name = "nc-py-api", extras = ["calendar"], specifier = ">=0.6.0" },
     { name = "pandas", specifier = ">=2.3.2" },

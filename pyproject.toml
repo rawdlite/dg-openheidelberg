@@ -3,7 +3,7 @@ name = "dg_openheidelberg"
 requires-python = ">=3.9,<3.14"
 version = "0.1.0"
 dependencies = [
-    "couchdb>=1.2",
+    "couchdb2>=1.13.0",
     "dagster==1.11.9",
     "nc-py-api[calendar]>=0.6.0",
     "pandas>=2.3.2",
