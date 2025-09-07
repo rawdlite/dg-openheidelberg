@@ -1,6 +1,9 @@
 from config import Config
 import couchdb
+import os
 from typing import List, Dict, Any, Optional
+
+DEBUG = os.getenv("DEBUG", "0") in ("1", "true", "True")
 
 class Client:
     """
@@ -17,11 +20,14 @@ class Client:
         couchdb_username = self.config.get('couchdb_username') or ''
         couchdb_password = self.config.get('couchdb_password') or ''
         database_name = self.config.get('couchdb_db')
+        if not database_name:
+            raise ValueError("CouchDB database name must be specified in the configuration.")
         if couchdb_username and couchdb_password:
             server_url = f"https://{couchdb_username}:{couchdb_password}@{couchdb_server}"
         else:
             server_url = f"http://{couchdb_server}"
-        print(f"**couch**: {self.config}")
+        if DEBUG:
+            print(f"**couch config**: {self.config}")
         self.server = couchdb.Server(server_url)
         self.db = self.server[database_name]
 

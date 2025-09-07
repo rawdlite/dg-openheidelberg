@@ -29,17 +29,11 @@ class TestDagsterAssets(unittest.TestCase):
         from src.dg_openheidelberg.defs.assets import update_openproject_member_tasks
         res = update_openproject_member_tasks()
         self.assertIsNotNone(res)
-
-    def test_create_openproject_user_accounts(self):
-        # Act
-        from src.dg_openheidelberg.defs.assets import create_openproject_user_accounts
-        res = create_openproject_user_accounts()
-        self.assertIsNotNone(res)
         
-    def test_create_nextcloud_user_accounts(self):
+    def test_create_user_accounts(self):
         # Act
-        from src.dg_openheidelberg.defs.assets import create_nextcloud_user_accounts
-        res = create_nextcloud_user_accounts()
+        from src.dg_openheidelberg.defs.assets import create_user_accounts
+        res = create_user_accounts()
         self.assertIsNotNone(res)
         
     def test_update_couchdb(self):
