@@ -123,5 +123,5 @@ class Client:
         Returns:
             List of all documents in the database
         """
-        rows = self.db.view('apps', 'all_entries', include_docs=True)
+        rows = self.db.view(designname='app', viewname='all_entries', include_docs=True)
         return [row.doc for row in rows if not row.id.startswith('_design/')]
