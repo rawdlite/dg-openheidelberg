@@ -1,8 +1,8 @@
 import toml
 import os
 
-#TODO: rename shared config path to reflect that it is not only for mcp
-DEFAULT_CONFIGFILE = os.path.expanduser(os.path.join('~','.config','mcp','config.toml'))
+DEFAULT_CONFIGFILE = os.getenv("ONBOARDING_CONFIG", "/srv/live/dagster/config/config.toml")
+print(f"**config:** {DEFAULT_CONFIGFILE}")
 
 class Config:
     """

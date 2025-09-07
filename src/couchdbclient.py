@@ -21,7 +21,7 @@ class Client:
             server_url = f"https://{couchdb_username}:{couchdb_password}@{couchdb_server}"
         else:
             server_url = f"http://{couchdb_server}"
-
+        print(f"**couch**: {self.config}")
         self.server = couchdb.Server(server_url)
         self.db = self.server[database_name]
 

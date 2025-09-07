@@ -84,8 +84,7 @@ def check_user_onboarding_has_email_data():
 # CREATE MEMBER TASKS PIPELINE
 @dg.asset(name='create_openproject_member_tasks',
           group_name="initialisation",
-          description="Write initial user onboarding task from couchdb",
-          deps=["user_onboarding_csv"])
+          description="Write initial user onboarding task from couchdb")
 def create_openproject_member_tasks():
     """couch-->op
     Write initial user onboarding task to OpenProject"""
